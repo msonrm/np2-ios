@@ -45,7 +45,7 @@ jobs:
           -output build/universal/libSDL2.a
           
     - name: Upload SDL2 Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: SDL2-iOS
         path: SDL2-2.28.5/build/universal/

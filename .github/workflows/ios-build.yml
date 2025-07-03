@@ -62,12 +62,16 @@ jobs:
           echo "SDL2 build completed"
         fi
         
+    - name: List available schemes
+      run: |
+        cd sdl2/iOS
+        xcodebuild -project np2sdl2.xcodeproj -list
+        
     - name: Build for iOS Simulator
       run: |
         cd sdl2/iOS
         xcodebuild \
           -project np2sdl2.xcodeproj \
-          -scheme np2sdl2 \
           -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
           -configuration Debug \
           build
@@ -85,7 +89,7 @@ jobs:
           build
           
     - name: Archive Build Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: success()
       with:
         name: np2-ios-build
