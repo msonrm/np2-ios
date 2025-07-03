@@ -62,18 +62,39 @@ jobs:
           echo "SDL2 build completed"
         fi
         
-    - name: List available schemes
+    - name: Analyze Xcode project
       run: |
         cd sdl2/iOS
+        echo "=== Project Information ==="
         xcodebuild -project np2sdl2.xcodeproj -list
+        
+        echo "=== Project Settings ==="
+        xcodebuild -project np2sdl2.xcodeproj -showBuildSettings | head -50
+        
+        echo "=== Available SDKs ==="
+        xcodebuild -showsdks | grep iOS
         
     - name: Build for iOS Simulator
       run: |
         cd sdl2/iOS
+        # Try building without specifying scheme first
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
           -configuration Debug \
+          -allowProvisioningUpdates \
+          clean build || true
+        
+        # If that fails, try with the first available target
+        echo "Attempting build with different settings..."
+        xcodebuild \
+          -project np2sdl2.xcodeproj \
+          -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
+          -configuration Debug \
+          -allowProvisioningUpdates \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          DEVELOPMENT_TEAM="" \
           build
           
     - name: Build for iOS Device (unsigned)
@@ -81,11 +102,12 @@ jobs:
         cd sdl2/iOS
         xcodebuild \
           -project np2sdl2.xcodeproj \
-          -scheme np2sdl2 \
           -destination "generic/platform=iOS" \
           -configuration Release \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
+          DEVELOPMENT_TEAM="" \
+          -allowProvisioningUpdates \
           build
           
     - name: Archive Build Artifacts
