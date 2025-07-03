@@ -31,6 +31,12 @@ jobs:
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       run: |
         cd sdl2/iOS
+        
+        # プロジェクト設定を確認
+        echo "=== プロジェクト設定確認 ==="
+        xcodebuild -project np2sdl2.xcodeproj -scheme np2sdl2 -showBuildSettings | grep -E "(CODE_SIGN|PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM)"
+        
+        echo "=== ビルド開始 ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
