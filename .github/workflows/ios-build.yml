@@ -1,0 +1,94 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build:
+    name: Build iOS App
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: 'latest-stable'
+        
+    - name: Check if SDL2 library exists
+      run: |
+        if [ -f "sdl2/iOS/SDL2/lib/libSDL2.a" ]; then
+          echo "SDL2 library found"
+          ls -la sdl2/iOS/SDL2/lib/
+        else
+          echo "SDL2 library not found, will build it"
+        fi
+        
+    - name: Download and Build SDL2 (if needed)
+      run: |
+        if [ ! -f "sdl2/iOS/SDL2/lib/libSDL2.a" ]; then
+          echo "Building SDL2..."
+          curl -L https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-2.28.5.tar.gz | tar xz
+          cd SDL2-2.28.5
+          
+          # iOS Device
+          xcodebuild -project Xcode/SDL/SDL.xcodeproj \
+            -target libSDL2 \
+            -sdk iphoneos \
+            -configuration Release \
+            ARCHS="arm64" \
+            build
+            
+          # iOS Simulator
+          xcodebuild -project Xcode/SDL/SDL.xcodeproj \
+            -target libSDL2 \
+            -sdk iphonesimulator \
+            -configuration Release \
+            ARCHS="arm64 x86_64" \
+            build
+            
+          # Create universal binary
+          mkdir -p ../sdl2/iOS/SDL2/lib
+          lipo -create \
+            build/Release-iphoneos/libSDL2.a \
+            build/Release-iphonesimulator/libSDL2.a \
+            -output ../sdl2/iOS/SDL2/lib/libSDL2.a
+            
+          echo "SDL2 build completed"
+        fi
+        
+    - name: Build for iOS Simulator
+      run: |
+        cd sdl2/iOS
+        xcodebuild \
+          -project np2sdl2.xcodeproj \
+          -scheme np2sdl2 \
+          -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
+          -configuration Debug \
+          build
+          
+    - name: Build for iOS Device (unsigned)
+      run: |
+        cd sdl2/iOS
+        xcodebuild \
+          -project np2sdl2.xcodeproj \
+          -scheme np2sdl2 \
+          -destination "generic/platform=iOS" \
+          -configuration Release \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          build
+          
+    - name: Archive Build Artifacts
+      uses: actions/upload-artifact@v3
+      if: success()
+      with:
+        name: np2-ios-build
+        path: |
+          sdl2/iOS/build/
+        retention-days: 7

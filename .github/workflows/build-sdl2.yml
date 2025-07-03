@@ -1,0 +1,51 @@
+name: Build SDL2 Framework
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly
+
+jobs:
+  build-sdl2:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Download SDL2 Source
+      run: |
+        curl -L https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-2.28.5.tar.gz | tar xz
+        cd SDL2-2.28.5
+        
+    - name: Build SDL2 for iOS
+      run: |
+        cd SDL2-2.28.5
+        # iOS Device
+        xcodebuild -project Xcode/SDL/SDL.xcodeproj \
+          -target libSDL2 \
+          -sdk iphoneos \
+          -configuration Release \
+          ARCHS="arm64" \
+          build
+          
+        # iOS Simulator  
+        xcodebuild -project Xcode/SDL/SDL.xcodeproj \
+          -target libSDL2 \
+          -sdk iphonesimulator \
+          -configuration Release \
+          ARCHS="arm64 x86_64" \
+          build
+          
+    - name: Create Universal Framework
+      run: |
+        cd SDL2-2.28.5
+        # Create universal binary using lipo
+        mkdir -p build/universal
+        lipo -create \
+          build/Release-iphoneos/libSDL2.a \
+          build/Release-iphonesimulator/libSDL2.a \
+          -output build/universal/libSDL2.a
+          
+    - name: Upload SDL2 Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: SDL2-iOS
+        path: SDL2-2.28.5/build/universal/
