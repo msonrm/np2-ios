@@ -17,34 +17,16 @@ jobs:
       with:
         xcode-version: 'latest-stable'
         
-    - name: Install Apple Certificate and Provisioning Profile
+    - name: Setup App Store Connect API Key for auto-signing
       env:
-        BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-        KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       run: |
-        # create variables
-        CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-        PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-
-        # import certificate from secrets
-        echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output $CERTIFICATE_PATH
-
-        # create temporary keychain
-        security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-        security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-        security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-        # import certificate to keychain
-        security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-        security list-keychain -d user -s $KEYCHAIN_PATH
-
-        # install provisioning profile
-        echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode --output $PP_PATH
-        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+        # Store App Store Connect API key for automatic signing
+        echo "$APP_STORE_CONNECT_PRIVATE_KEY" > AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
+        echo "App Store Connect API key created for Team ID: $APPLE_TEAM_ID"
         
     - name: Build and Archive
       env:
@@ -69,7 +51,7 @@ jobs:
           -configuration Release \
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
-          CODE_SIGN_STYLE=Manual \
+          CODE_SIGN_STYLE=Automatic \
           DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
           archive
           
@@ -132,8 +114,7 @@ jobs:
         path: sdl2/iOS/export/*.ipa
         retention-days: 7
         
-    - name: Clean up keychain and provisioning profile
+    - name: Clean up API key
       if: always()
       run: |
-        security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
-        rm -f ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision || true
+        rm -f AuthKey_*.p8 || true
