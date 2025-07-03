@@ -1782,6 +1782,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEVELOPMENT_TEAM = R72X3BF4KE;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -1812,6 +1813,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/SDL2/lib\"",
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.msonrm.np2sdl2;
 				PRODUCT_NAME = np2sdl2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1821,6 +1823,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = YES;
 				DEVELOPMENT_TEAM = R72X3BF4KE;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
@@ -1849,6 +1852,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/SDL2/lib\"",
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.msonrm.np2sdl2;
 				PRODUCT_NAME = np2sdl2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
