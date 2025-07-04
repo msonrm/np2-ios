@@ -1,11 +1,11 @@
-name: Simple TestFlight Deploy
+name: Build IPA for TestFlight
 
 on:
   workflow_dispatch:  # 手動実行のみ
 
 jobs:
-  deploy:
-    name: Build for TestFlight
+  build:
+    name: Build IPA
     runs-on: macos-latest
     
     steps:
@@ -17,51 +17,11 @@ jobs:
       with:
         xcode-version: 'latest-stable'
         
-    - name: Install Apple Certificate and Provisioning Profile
-      env:
-        BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-        KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
-      run: |
-        # create variables
-        CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-        PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-
-        # import certificate from secrets
-        echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode --output $CERTIFICATE_PATH
-
-        # create temporary keychain
-        security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-        security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-        security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-        # import certificate to keychain
-        security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-        security list-keychain -d user -s $KEYCHAIN_PATH
-
-        # install provisioning profile
-        echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode --output $PP_PATH
-        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
-        
-    - name: Build and Archive
-      env:
-        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    - name: Build Archive (No Code Signing)
       run: |
         cd sdl2/iOS
         
-        # プロジェクト設定を確認
-        echo "=== プロジェクト設定確認 ==="
-        echo "GitHub Actions Team ID: $APPLE_TEAM_ID"
-        xcodebuild -project np2sdl2.xcodeproj -scheme np2sdl2 -showBuildSettings | grep -E "(CODE_SIGN|PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM)"
-        
-        # 利用可能な署名証明書を確認
-        echo "=== 利用可能な署名証明書 ==="
-        security find-identity -v -p codesigning
-        
-        echo "=== ビルド開始 ==="
+        echo "=== Building without code signing ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
@@ -69,71 +29,27 @@ jobs:
           -configuration Release \
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
-          CODE_SIGN_STYLE=Manual \
-          DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
           archive
           
-    - name: Export for TestFlight
-      run: |
-        cd sdl2/iOS
-        cat > exportOptions.plist << EOF
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>method</key>
-            <string>development</string>
-            <key>destination</key>
-            <string>export</string>
-            <key>stripSwiftSymbols</key>
-            <true/>
-            <key>uploadBitcode</key>
-            <false/>
-            <key>uploadSymbols</key>
-            <true/>
-            <key>compileBitcode</key>
-            <false/>
-        </dict>
-        </plist>
-        EOF
-        
-        xcodebuild \
-          -archivePath np2sdl2.xcarchive \
-          -exportPath export \
-          -exportOptionsPlist exportOptions.plist \
-          -exportArchive
-          
-    - name: Upload to TestFlight
-      env:
-        APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-      run: |
-        cd sdl2/iOS
-        
-        # App Store Connect API キーファイルを作成
-        echo "$APP_STORE_CONNECT_PRIVATE_KEY" > AuthKey.p8
-        
-        # xcrunを使用してTestFlightにアップロード
-        xcrun altool --upload-app \
-          --type ios \
-          --file export/*.ipa \
-          --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-          --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-          --apiKeyFile AuthKey.p8
-        
-        # APIキーファイルを削除
-        rm AuthKey.p8
-        
-    - name: Upload IPA Artifact (Backup)
+    - name: Upload Archive Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: np2-testflight-ipa
-        path: sdl2/iOS/export/*.ipa
+        name: np2-archive
+        path: sdl2/iOS/np2sdl2.xcarchive
         retention-days: 7
         
-    - name: Clean up keychain and provisioning profile
-      if: always()
+    - name: Instructions
       run: |
-        security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
-        rm -f ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision || true
+        echo "============================================"
+        echo "Archive created successfully!"
+        echo "============================================"
+        echo "To create IPA for TestFlight:"
+        echo "1. Download the archive from GitHub Actions artifacts"
+        echo "2. Open Xcode Organizer"
+        echo "3. Import the archive"
+        echo "4. Click 'Distribute App' -> 'App Store Connect'"
+        echo "5. Follow the signing and upload process"
+        echo "============================================"
