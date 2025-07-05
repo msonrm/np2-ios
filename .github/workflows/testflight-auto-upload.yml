@@ -60,11 +60,14 @@ jobs:
         echo "$API_PRIVATE_KEY" > ~/private_keys/AuthKey_$API_KEY_ID.p8
         chmod 600 ~/private_keys/AuthKey_$API_KEY_ID.p8
         
-    - name: Build and Archive with Automatic Provisioning
+    - name: Build and Archive with Distribution Profile
       run: |
         cd sdl2/iOS
         
-        echo "=== Building with automatic provisioning ==="
+        echo "=== Configuring for App Store distribution ==="
+        
+        # First try to build without specifying profile to see what Xcode finds
+        echo "=== Attempting build with automatic provisioning ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
@@ -75,11 +78,34 @@ jobs:
           CODE_SIGN_STYLE=Automatic \
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
+          CODE_SIGN_IDENTITY="Apple Distribution" \
           -allowProvisioningUpdates \
           -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APPSTORE_API_KEY_ID }}.p8 \
           -authenticationKeyID ${{ secrets.APPSTORE_API_KEY_ID }} \
           -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }} \
-          archive
+          archive || {
+            echo "Automatic provisioning failed, trying manual approach..."
+            
+            echo "=== Listing available identities ==="
+            security find-identity -v -p codesigning
+            
+            echo "=== Building with manual signing ==="
+            xcodebuild \
+              -project np2sdl2.xcodeproj \
+              -scheme np2sdl2 \
+              -destination "generic/platform=iOS" \
+              -configuration Release \
+              -archivePath np2sdl2.xcarchive \
+              IPHONEOS_DEPLOYMENT_TARGET=12.0 \
+              CODE_SIGN_STYLE=Manual \
+              DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+              PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
+              CODE_SIGN_IDENTITY="iPhone Distribution" \
+              -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APPSTORE_API_KEY_ID }}.p8 \
+              -authenticationKeyID ${{ secrets.APPSTORE_API_KEY_ID }} \
+              -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }} \
+              archive
+          }
           
     - name: Export IPA
       run: |
