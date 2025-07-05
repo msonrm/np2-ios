@@ -68,7 +68,16 @@ jobs:
         PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
         echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode --output $PP_PATH
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/distribution.mobileprovision
+        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+        
+        # Get the actual profile name from the file
+        PROFILE_NAME=$(security cms -D -i $PP_PATH | plutil -extract Name raw -)
+        PROFILE_UUID=$(security cms -D -i $PP_PATH | plutil -extract UUID raw -)
+        echo "Profile Name: $PROFILE_NAME"
+        echo "Profile UUID: $PROFILE_UUID"
+        
+        # Also copy with UUID name (standard iOS location)
+        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
         
         # List installed profiles for verification
         ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
@@ -79,6 +88,11 @@ jobs:
     - name: Build Archive
       run: |
         cd sdl2/iOS
+        
+        # Get the profile name from the installed profile
+        PP_FILE=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
+        PROFILE_NAME=$(security cms -D -i "$PP_FILE" | plutil -extract Name raw -)
+        echo "Using profile: $PROFILE_NAME"
         
         echo "=== Building with manual signing ==="
         xcodebuild \
@@ -92,7 +106,7 @@ jobs:
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
           CODE_SIGN_IDENTITY="iPhone Distribution" \
-          PROVISIONING_PROFILE_SPECIFIER="distribution" \
+          PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
           archive
           
     - name: Export IPA
