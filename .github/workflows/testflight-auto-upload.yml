@@ -1,0 +1,99 @@
+name: Build and Upload to TestFlight
+
+on:
+  workflow_dispatch:  # 手動実行
+  push:
+    branches: [ master ]  # masterブランチへのプッシュ時
+
+jobs:
+  build-and-upload:
+    name: Build and Upload to TestFlight
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: 'latest-stable'
+        
+    - name: Configure App Store Connect API
+      run: |
+        mkdir -p ~/private_keys
+        echo "${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+        
+    - name: Build and Archive
+      run: |
+        cd sdl2/iOS
+        
+        echo "=== Building with automatic signing ==="
+        xcodebuild \
+          -project np2sdl2.xcodeproj \
+          -scheme np2sdl2 \
+          -destination "generic/platform=iOS" \
+          -configuration Release \
+          -archivePath np2sdl2.xcarchive \
+          IPHONEOS_DEPLOYMENT_TARGET=12.0 \
+          CODE_SIGN_STYLE=Automatic \
+          DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+          archive
+          
+    - name: Export IPA
+      run: |
+        cd sdl2/iOS
+        
+        # Export options plist作成
+        cat > exportOptions.plist << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+        </dict>
+        </plist>
+        EOF
+        
+        # IPA作成
+        xcodebuild \
+          -exportArchive \
+          -archivePath np2sdl2.xcarchive \
+          -exportPath export \
+          -exportOptionsPlist exportOptions.plist
+          
+    - name: Upload to TestFlight
+      run: |
+        cd sdl2/iOS
+        
+        # TestFlightにアップロード
+        xcrun altool \
+          --upload-app \
+          --type ios \
+          --file export/*.ipa \
+          --apiKey ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+          --apiIssuer ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+          --verbose
+          
+    - name: Upload IPA Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: np2-ipa
+        path: sdl2/iOS/export/*.ipa
+        retention-days: 7
+        
+    - name: Success Message
+      run: |
+        echo "============================================"
+        echo "✅ Build and upload completed successfully!"
+        echo "============================================"
+        echo "The app has been uploaded to TestFlight."
+        echo "Check App Store Connect for processing status."
+        echo "============================================"
