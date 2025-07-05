@@ -19,21 +19,10 @@ jobs:
       with:
         xcode-version: 'latest-stable'
         
-    - name: Install Certificate and Setup Authentication
+    - name: Install Certificate
       env:
-        PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
         KEYCHAIN_PASSWORD: "actions"
-        API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
-        API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-        API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
       run: |
-        # Setup App Store Connect API for automatic provisioning
-        mkdir -p ~/private_keys
-        echo "$API_PRIVATE_KEY" > ~/private_keys/AuthKey_$API_KEY_ID.p8
-        
-        # Set environment for automatic provisioning
-        echo "FASTLANE_USER=$API_KEY_ID" >> $GITHUB_ENV
-        echo "FASTLANE_PASSWORD=$API_ISSUER_ID" >> $GITHUB_ENV
         # Create keychain
         KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
         security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
@@ -41,183 +30,41 @@ jobs:
         security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
         security list-keychain -d user -s $KEYCHAIN_PATH
         
-        # Import certificate (using existing file directly)
+        # Convert and import certificate
         CERT_PATH="$GITHUB_WORKSPACE/certificates/ios_distribution_nopass.p12"
-        echo "Looking for certificate at: $CERT_PATH"
-        ls -la $GITHUB_WORKSPACE/certificates/
+        TEMP_CERT="$RUNNER_TEMP/cert.pem"
+        TEMP_KEY="$RUNNER_TEMP/key.pem" 
+        TEMP_P12="$RUNNER_TEMP/final.p12"
         
-        if [ -f "$CERT_PATH" ]; then
-          echo "Certificate file found: $CERT_PATH"
-          file "$CERT_PATH"
-          
-          # Test certificate first
-          openssl pkcs12 -info -in "$CERT_PATH" -passin pass: -noout || echo "OpenSSL test failed"
-          
-          # Extract certificate and private key separately
-          TEMP_CERT="$RUNNER_TEMP/cert.pem"
-          TEMP_KEY="$RUNNER_TEMP/key.pem" 
-          TEMP_P12="$RUNNER_TEMP/final.p12"
-          
-          # Extract certificate
-          openssl pkcs12 -in "$CERT_PATH" -clcerts -nokeys -out "$TEMP_CERT" -passin pass:
-          
-          # Extract private key
-          openssl pkcs12 -in "$CERT_PATH" -nocerts -nodes -out "$TEMP_KEY" -passin pass:
-          
-          # Create new PKCS12 with macOS-compatible format
-          openssl pkcs12 -export -in "$TEMP_CERT" -inkey "$TEMP_KEY" -out "$TEMP_P12" -passout pass:macospass123 -name "iOS Distribution"
-          
-          # Import the newly created certificate
-          security import "$TEMP_P12" -P "macospass123" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH -T /usr/bin/codesign -T /usr/bin/xcodebuild
-        else
-          echo "Certificate file not found: $CERT_PATH"
-          exit 1
-        fi
+        # Extract certificate and private key separately
+        openssl pkcs12 -in "$CERT_PATH" -clcerts -nokeys -out "$TEMP_CERT" -passin pass:
+        openssl pkcs12 -in "$CERT_PATH" -nocerts -nodes -out "$TEMP_KEY" -passin pass:
         
-        # Install provisioning profile
-        PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-        echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode --output $PP_PATH
-        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+        # Create new PKCS12 with macOS-compatible format
+        openssl pkcs12 -export -in "$TEMP_CERT" -inkey "$TEMP_KEY" -out "$TEMP_P12" -passout pass:macospass123 -name "iOS Distribution"
         
-        # Get detailed information about the provisioning profile
-        echo "=== Analyzing provisioning profile ==="
-        if PROFILE_CONTENT=$(security cms -D -i $PP_PATH 2>/dev/null); then
-          echo "$PROFILE_CONTENT" > /tmp/profile.plist
-          
-          PROFILE_NAME=$(plutil -extract Name raw /tmp/profile.plist 2>/dev/null || echo "unknown")
-          PROFILE_UUID=$(plutil -extract UUID raw /tmp/profile.plist 2>/dev/null || echo "unknown")
-          BUNDLE_ID=$(plutil -extract 'Entitlements.application-identifier' raw /tmp/profile.plist 2>/dev/null | sed 's/.*\.//' || echo "unknown")
-          TEAM_ID=$(plutil -extract TeamIdentifier.0 raw /tmp/profile.plist 2>/dev/null || echo "unknown")
-          
-          echo "Profile Name: $PROFILE_NAME"
-          echo "Profile UUID: $PROFILE_UUID"
-          echo "Bundle ID from profile: $BUNDLE_ID"
-          echo "Team ID from profile: $TEAM_ID"
-          echo "Expected Bundle ID: com.msonrm.np2sdl2"
-          echo "Expected Team ID: ${{ secrets.APPLE_TEAM_ID }}"
-          
-          # Copy with UUID name if we got it
-          if [ "$PROFILE_UUID" != "unknown" ]; then
-            cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
-            echo "Copied profile to: ~/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
-          fi
-        else
-          echo "ERROR: Could not decode provisioning profile with security cms"
-          echo "Profile file details:"
-          file $PP_PATH
-          ls -la $PP_PATH
-          
-          # Try to see if it's actually a valid provisioning profile
-          echo "=== Checking file content ==="
-          head -20 $PP_PATH
-          echo "=== End of file content sample ==="
-          
-          # Check if the base64 decoding worked correctly
-          echo "=== Checking if file contains expected provisioning profile markers ==="
-          if grep -q "<?xml" $PP_PATH; then
-            echo "File contains XML - might be already decoded"
-            # Try to parse directly as plist
-            if plutil -lint $PP_PATH 2>/dev/null; then
-              echo "File is valid plist, extracting info directly..."
-              PROFILE_NAME=$(plutil -extract Name raw $PP_PATH 2>/dev/null || echo "unknown")
-              PROFILE_UUID=$(plutil -extract UUID raw $PP_PATH 2>/dev/null || echo "unknown")
-              BUNDLE_ID=$(plutil -extract 'Entitlements.application-identifier' raw $PP_PATH 2>/dev/null | sed 's/.*\.//' || echo "unknown")
-              TEAM_ID=$(plutil -extract TeamIdentifier.0 raw $PP_PATH 2>/dev/null || echo "unknown")
-              
-              echo "Profile Name: $PROFILE_NAME"
-              echo "Profile UUID: $PROFILE_UUID"
-              echo "Bundle ID from profile: $BUNDLE_ID"
-              echo "Team ID from profile: $TEAM_ID"
-              
-              if [ "$PROFILE_UUID" != "unknown" ]; then
-                cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
-                echo "Copied profile to: ~/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
-              fi
-            else
-              echo "File is not a valid plist either"
-              exit 1
-            fi
-          else
-            echo "File does not contain XML, checking if it's binary/encoded..."
-            
-            # Check if it's a binary plist
-            if file $PP_PATH | grep -q "binary"; then
-              echo "File appears to be binary plist format"
-              plutil -convert xml1 $PP_PATH -o /tmp/converted_profile.plist
-              if [ -f "/tmp/converted_profile.plist" ]; then
-                echo "Successfully converted binary plist to XML"
-                PROFILE_NAME=$(plutil -extract Name raw /tmp/converted_profile.plist 2>/dev/null || echo "unknown")
-                PROFILE_UUID=$(plutil -extract UUID raw /tmp/converted_profile.plist 2>/dev/null || echo "unknown")
-                BUNDLE_ID=$(plutil -extract 'Entitlements.application-identifier' raw /tmp/converted_profile.plist 2>/dev/null | sed 's/.*\.//' || echo "unknown")
-                TEAM_ID=$(plutil -extract TeamIdentifier.0 raw /tmp/converted_profile.plist 2>/dev/null || echo "unknown")
-                
-                echo "Profile Name: $PROFILE_NAME"
-                echo "Profile UUID: $PROFILE_UUID"
-                echo "Bundle ID from profile: $BUNDLE_ID"
-                echo "Team ID from profile: $TEAM_ID"
-                
-                if [ "$PROFILE_UUID" != "unknown" ]; then
-                  cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
-                fi
-              else
-                echo "Failed to convert binary plist"
-                exit 1
-              fi
-            else
-              echo "Unknown file format. Checking hexdump..."
-              hexdump -C $PP_PATH | head -10
-              echo "Checking if PROVISIONING_PROFILE_BASE64 secret is set correctly..."
-              
-              # Try to re-decode in case there's an encoding issue
-              echo "Attempting alternative base64 decode..."
-              echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/alt_profile.mobileprovision 2>/dev/null
-              if [ -f "/tmp/alt_profile.mobileprovision" ]; then
-                echo "Alternative decode successful, analyzing..."
-                file /tmp/alt_profile.mobileprovision
-                head -5 /tmp/alt_profile.mobileprovision
-              else
-                echo "Alternative decode also failed"
-                echo "Please check if PROVISIONING_PROFILE_BASE64 secret contains valid base64 data"
-                exit 1
-              fi
-            fi
-          fi
-        fi
+        # Import the newly created certificate
+        security import "$TEMP_P12" -P "macospass123" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH -T /usr/bin/codesign -T /usr/bin/xcodebuild
         
-        # List installed profiles for verification
-        ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
-        
-        # Verify setup
+        # Verify certificate
         security find-identity -v -p codesigning $KEYCHAIN_PATH
         
-    - name: Configure Project and Build Archive
+    - name: Setup App Store Connect API
+      env:
+        API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+        API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+      run: |
+        # Create API key file for App Store Connect
+        mkdir -p ~/private_keys
+        echo "$API_PRIVATE_KEY" > ~/private_keys/AuthKey_$API_KEY_ID.p8
+        chmod 600 ~/private_keys/AuthKey_$API_KEY_ID.p8
+        
+    - name: Build and Archive with Automatic Provisioning
       run: |
         cd sdl2/iOS
         
-        # List available profiles
-        echo "Available provisioning profiles:"
-        ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
-        
-        # Get the UUID of the provisioning profile
-        PP_FILES=(~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision)
-        if [ -f "${PP_FILES[0]}" ]; then
-          PP_FILE="${PP_FILES[0]}"
-          PP_UUID=$(basename "$PP_FILE" .mobileprovision)
-          echo "Found provisioning profile: $PP_FILE"
-          echo "Using provisioning profile UUID: $PP_UUID"
-        else
-          echo "Error: No provisioning profile found"
-          exit 1
-        fi
-        
-        # Update project settings using PlistBuddy
-        /usr/libexec/PlistBuddy -c "Set :objects:*:buildSettings:CODE_SIGN_STYLE Manual" np2sdl2.xcodeproj/project.pbxproj 2>/dev/null || true
-        /usr/libexec/PlistBuddy -c "Set :objects:*:buildSettings:DEVELOPMENT_TEAM ${{ secrets.APPLE_TEAM_ID }}" np2sdl2.xcodeproj/project.pbxproj 2>/dev/null || true
-        /usr/libexec/PlistBuddy -c "Set :objects:*:buildSettings:CODE_SIGN_IDENTITY[sdk=iphoneos*] iPhone Distribution" np2sdl2.xcodeproj/project.pbxproj 2>/dev/null || true
-        /usr/libexec/PlistBuddy -c "Set :objects:*:buildSettings:PROVISIONING_PROFILE_SPECIFIER $PP_UUID" np2sdl2.xcodeproj/project.pbxproj 2>/dev/null || true
-        
-        echo "=== Building for App Store distribution ==="
+        echo "=== Building with automatic provisioning ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
@@ -225,6 +72,13 @@ jobs:
           -configuration Release \
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
+          CODE_SIGN_STYLE=Automatic \
+          DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+          PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
+          -allowProvisioningUpdates \
+          -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APPSTORE_API_KEY_ID }}.p8 \
+          -authenticationKeyID ${{ secrets.APPSTORE_API_KEY_ID }} \
+          -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }} \
           archive
           
     - name: Export IPA
@@ -250,7 +104,7 @@ jobs:
             <key>destination</key>
             <string>upload</string>
             <key>signingStyle</key>
-            <string>manual</string>
+            <string>automatic</string>
         </dict>
         </plist>
         EOF
@@ -260,19 +114,18 @@ jobs:
           -exportArchive \
           -archivePath np2sdl2.xcarchive \
           -exportPath export \
-          -exportOptionsPlist ExportOptions.plist
+          -exportOptionsPlist ExportOptions.plist \
+          -allowProvisioningUpdates \
+          -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APPSTORE_API_KEY_ID }}.p8 \
+          -authenticationKeyID ${{ secrets.APPSTORE_API_KEY_ID }} \
+          -authenticationKeyIssuerID ${{ secrets.APPSTORE_ISSUER_ID }}
           
     - name: Upload to TestFlight
       env:
         API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
         API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-        API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
       run: |
         cd sdl2/iOS
-        
-        # Create App Store Connect API key file
-        mkdir -p ~/private_keys
-        echo "$API_PRIVATE_KEY" > ~/private_keys/AuthKey_$API_KEY_ID.p8
         
         # Upload to TestFlight using altool
         xcrun altool --upload-app \
