@@ -103,11 +103,45 @@ jobs:
             echo "Copied profile to: ~/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           fi
         else
-          echo "ERROR: Could not decode provisioning profile"
+          echo "ERROR: Could not decode provisioning profile with security cms"
           echo "Profile file details:"
           file $PP_PATH
           ls -la $PP_PATH
-          exit 1
+          
+          # Try to see if it's actually a valid provisioning profile
+          echo "=== Checking file content ==="
+          head -20 $PP_PATH
+          echo "=== End of file content sample ==="
+          
+          # Check if the base64 decoding worked correctly
+          echo "=== Checking if file contains expected provisioning profile markers ==="
+          if grep -q "<?xml" $PP_PATH; then
+            echo "File contains XML - might be already decoded"
+            # Try to parse directly as plist
+            if plutil -lint $PP_PATH 2>/dev/null; then
+              echo "File is valid plist, extracting info directly..."
+              PROFILE_NAME=$(plutil -extract Name raw $PP_PATH 2>/dev/null || echo "unknown")
+              PROFILE_UUID=$(plutil -extract UUID raw $PP_PATH 2>/dev/null || echo "unknown")
+              BUNDLE_ID=$(plutil -extract 'Entitlements.application-identifier' raw $PP_PATH 2>/dev/null | sed 's/.*\.//' || echo "unknown")
+              TEAM_ID=$(plutil -extract TeamIdentifier.0 raw $PP_PATH 2>/dev/null || echo "unknown")
+              
+              echo "Profile Name: $PROFILE_NAME"
+              echo "Profile UUID: $PROFILE_UUID"
+              echo "Bundle ID from profile: $BUNDLE_ID"
+              echo "Team ID from profile: $TEAM_ID"
+              
+              if [ "$PROFILE_UUID" != "unknown" ]; then
+                cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
+                echo "Copied profile to: ~/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+              fi
+            else
+              echo "File is not a valid plist either"
+              exit 1
+            fi
+          else
+            echo "File does not contain XML, might be corrupted or wrong format"
+            exit 1
+          fi
         fi
         
         # List installed profiles for verification
