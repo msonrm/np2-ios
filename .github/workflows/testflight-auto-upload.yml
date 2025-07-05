@@ -24,12 +24,20 @@ jobs:
       with:
         ruby-version: '3.0'
         
-    - name: Create Gemfile
+    - name: Create Gemfile and install dependencies
       run: |
         cat > Gemfile << EOF
         source "https://rubygems.org"
         gem "fastlane"
         EOF
+        
+        # Install bundler if needed
+        gem install bundler
+        
+        # Configure bundler
+        bundle config set --local path 'vendor/bundle'
+        
+        # Install dependencies
         bundle install
         
     - name: Setup Fastlane Match
@@ -106,7 +114,7 @@ jobs:
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
       run: |
-        bundle exec fastlane ios beta
+        bundle exec --gemfile=Gemfile fastlane ios beta
         
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
