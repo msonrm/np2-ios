@@ -68,7 +68,10 @@ jobs:
         PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
         echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode --output $PP_PATH
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/distribution.mobileprovision
+        
+        # List installed profiles for verification
+        ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
         
         # Verify setup
         security find-identity -v -p codesigning $KEYCHAIN_PATH
@@ -77,7 +80,7 @@ jobs:
       run: |
         cd sdl2/iOS
         
-        echo "=== Building with automatic signing ==="
+        echo "=== Building with manual signing ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
@@ -85,9 +88,11 @@ jobs:
           -configuration Release \
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
-          CODE_SIGN_STYLE=Automatic \
+          CODE_SIGN_STYLE=Manual \
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
+          CODE_SIGN_IDENTITY="iPhone Distribution" \
+          PROVISIONING_PROFILE_SPECIFIER="distribution" \
           archive
           
     - name: Export IPA
@@ -113,7 +118,7 @@ jobs:
             <key>destination</key>
             <string>upload</string>
             <key>signingStyle</key>
-            <string>automatic</string>
+            <string>manual</string>
         </dict>
         </plist>
         EOF
