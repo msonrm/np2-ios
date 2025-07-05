@@ -77,7 +77,6 @@ jobs:
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
           CODE_SIGN_IDENTITY="iPhone Distribution" \
-          -jobs 4 \
           -quiet \
           archive
           
