@@ -19,11 +19,21 @@ jobs:
       with:
         xcode-version: 'latest-stable'
         
-    - name: Install Certificate and Provisioning Profile
+    - name: Install Certificate and Setup Authentication
       env:
         PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
         KEYCHAIN_PASSWORD: "actions"
+        API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+        API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
       run: |
+        # Setup App Store Connect API for automatic provisioning
+        mkdir -p ~/private_keys
+        echo "$API_PRIVATE_KEY" > ~/private_keys/AuthKey_$API_KEY_ID.p8
+        
+        # Set environment for automatic provisioning
+        echo "FASTLANE_USER=$API_KEY_ID" >> $GITHUB_ENV
+        echo "FASTLANE_PASSWORD=$API_ISSUER_ID" >> $GITHUB_ENV
         # Create keychain
         KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
         security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
@@ -102,7 +112,7 @@ jobs:
         echo "Available provisioning profiles:"
         ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
         
-        echo "=== Building with manual signing ==="
+        echo "=== Building with automatic signing and provisioning updates ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
@@ -110,10 +120,9 @@ jobs:
           -configuration Release \
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
-          CODE_SIGN_STYLE=Manual \
+          CODE_SIGN_STYLE=Automatic \
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
-          CODE_SIGN_IDENTITY="iPhone Distribution" \
           -allowProvisioningUpdates \
           archive
           
@@ -140,7 +149,7 @@ jobs:
             <key>destination</key>
             <string>upload</string>
             <key>signingStyle</key>
-            <string>manual</string>
+            <string>automatic</string>
         </dict>
         </plist>
         EOF
