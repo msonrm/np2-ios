@@ -80,22 +80,34 @@ jobs:
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
         cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
         
-        # Get the actual profile name from the file
+        # Get detailed information about the provisioning profile
+        echo "=== Analyzing provisioning profile ==="
         if PROFILE_CONTENT=$(security cms -D -i $PP_PATH 2>/dev/null); then
-          PROFILE_NAME=$(echo "$PROFILE_CONTENT" | plutil -extract Name raw - 2>/dev/null || echo "unknown")
-          PROFILE_UUID=$(echo "$PROFILE_CONTENT" | plutil -extract UUID raw - 2>/dev/null || echo "unknown")
+          echo "$PROFILE_CONTENT" > /tmp/profile.plist
+          
+          PROFILE_NAME=$(plutil -extract Name raw /tmp/profile.plist 2>/dev/null || echo "unknown")
+          PROFILE_UUID=$(plutil -extract UUID raw /tmp/profile.plist 2>/dev/null || echo "unknown")
+          BUNDLE_ID=$(plutil -extract 'Entitlements.application-identifier' raw /tmp/profile.plist 2>/dev/null | sed 's/.*\.//' || echo "unknown")
+          TEAM_ID=$(plutil -extract TeamIdentifier.0 raw /tmp/profile.plist 2>/dev/null || echo "unknown")
+          
           echo "Profile Name: $PROFILE_NAME"
           echo "Profile UUID: $PROFILE_UUID"
+          echo "Bundle ID from profile: $BUNDLE_ID"
+          echo "Team ID from profile: $TEAM_ID"
+          echo "Expected Bundle ID: com.msonrm.np2sdl2"
+          echo "Expected Team ID: ${{ secrets.APPLE_TEAM_ID }}"
           
           # Copy with UUID name if we got it
           if [ "$PROFILE_UUID" != "unknown" ]; then
             cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
+            echo "Copied profile to: ~/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           fi
         else
-          echo "Warning: Could not decode provisioning profile with security cms"
-          # Try alternative method - just use the file as-is
-          PROFILE_NAME="com.msonrm.np2sdl2 Distribution"
-          echo "Using fallback profile name: $PROFILE_NAME"
+          echo "ERROR: Could not decode provisioning profile"
+          echo "Profile file details:"
+          file $PP_PATH
+          ls -la $PP_PATH
+          exit 1
         fi
         
         # List installed profiles for verification
