@@ -71,13 +71,22 @@ jobs:
         cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
         
         # Get the actual profile name from the file
-        PROFILE_NAME=$(security cms -D -i $PP_PATH | plutil -extract Name raw -)
-        PROFILE_UUID=$(security cms -D -i $PP_PATH | plutil -extract UUID raw -)
-        echo "Profile Name: $PROFILE_NAME"
-        echo "Profile UUID: $PROFILE_UUID"
-        
-        # Also copy with UUID name (standard iOS location)
-        cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
+        if PROFILE_CONTENT=$(security cms -D -i $PP_PATH 2>/dev/null); then
+          PROFILE_NAME=$(echo "$PROFILE_CONTENT" | plutil -extract Name raw - 2>/dev/null || echo "unknown")
+          PROFILE_UUID=$(echo "$PROFILE_CONTENT" | plutil -extract UUID raw - 2>/dev/null || echo "unknown")
+          echo "Profile Name: $PROFILE_NAME"
+          echo "Profile UUID: $PROFILE_UUID"
+          
+          # Copy with UUID name if we got it
+          if [ "$PROFILE_UUID" != "unknown" ]; then
+            cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
+          fi
+        else
+          echo "Warning: Could not decode provisioning profile with security cms"
+          # Try alternative method - just use the file as-is
+          PROFILE_NAME="com.msonrm.np2sdl2 Distribution"
+          echo "Using fallback profile name: $PROFILE_NAME"
+        fi
         
         # List installed profiles for verification
         ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
@@ -89,10 +98,9 @@ jobs:
       run: |
         cd sdl2/iOS
         
-        # Get the profile name from the installed profile
-        PP_FILE=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | head -1)
-        PROFILE_NAME=$(security cms -D -i "$PP_FILE" | plutil -extract Name raw -)
-        echo "Using profile: $PROFILE_NAME"
+        # List available profiles
+        echo "Available provisioning profiles:"
+        ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
         
         echo "=== Building with manual signing ==="
         xcodebuild \
@@ -106,7 +114,7 @@ jobs:
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
           CODE_SIGN_IDENTITY="iPhone Distribution" \
-          PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+          -allowProvisioningUpdates \
           archive
           
     - name: Export IPA
