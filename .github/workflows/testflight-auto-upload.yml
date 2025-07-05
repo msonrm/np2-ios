@@ -139,8 +139,49 @@ jobs:
               exit 1
             fi
           else
-            echo "File does not contain XML, might be corrupted or wrong format"
-            exit 1
+            echo "File does not contain XML, checking if it's binary/encoded..."
+            
+            # Check if it's a binary plist
+            if file $PP_PATH | grep -q "binary"; then
+              echo "File appears to be binary plist format"
+              plutil -convert xml1 $PP_PATH -o /tmp/converted_profile.plist
+              if [ -f "/tmp/converted_profile.plist" ]; then
+                echo "Successfully converted binary plist to XML"
+                PROFILE_NAME=$(plutil -extract Name raw /tmp/converted_profile.plist 2>/dev/null || echo "unknown")
+                PROFILE_UUID=$(plutil -extract UUID raw /tmp/converted_profile.plist 2>/dev/null || echo "unknown")
+                BUNDLE_ID=$(plutil -extract 'Entitlements.application-identifier' raw /tmp/converted_profile.plist 2>/dev/null | sed 's/.*\.//' || echo "unknown")
+                TEAM_ID=$(plutil -extract TeamIdentifier.0 raw /tmp/converted_profile.plist 2>/dev/null || echo "unknown")
+                
+                echo "Profile Name: $PROFILE_NAME"
+                echo "Profile UUID: $PROFILE_UUID"
+                echo "Bundle ID from profile: $BUNDLE_ID"
+                echo "Team ID from profile: $TEAM_ID"
+                
+                if [ "$PROFILE_UUID" != "unknown" ]; then
+                  cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision
+                fi
+              else
+                echo "Failed to convert binary plist"
+                exit 1
+              fi
+            else
+              echo "Unknown file format. Checking hexdump..."
+              hexdump -C $PP_PATH | head -10
+              echo "Checking if PROVISIONING_PROFILE_BASE64 secret is set correctly..."
+              
+              # Try to re-decode in case there's an encoding issue
+              echo "Attempting alternative base64 decode..."
+              echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/alt_profile.mobileprovision 2>/dev/null
+              if [ -f "/tmp/alt_profile.mobileprovision" ]; then
+                echo "Alternative decode successful, analyzing..."
+                file /tmp/alt_profile.mobileprovision
+                head -5 /tmp/alt_profile.mobileprovision
+              else
+                echo "Alternative decode also failed"
+                echo "Please check if PROVISIONING_PROFILE_BASE64 secret contains valid base64 data"
+                exit 1
+              fi
+            fi
           fi
         fi
         
