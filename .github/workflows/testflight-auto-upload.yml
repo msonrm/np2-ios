@@ -43,8 +43,12 @@ jobs:
           # Test certificate first
           openssl pkcs12 -info -in "$CERT_PATH" -passin pass: -noout || echo "OpenSSL test failed"
           
-          # Import certificate
-          security import "$CERT_PATH" -P "" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH -T /usr/bin/codesign -T /usr/bin/xcodebuild
+          # Convert certificate to compatible format
+          TEMP_CERT="$RUNNER_TEMP/converted_cert.p12"
+          openssl pkcs12 -in "$CERT_PATH" -out "$TEMP_CERT" -passin pass: -passout pass:temppass123
+          
+          # Import converted certificate
+          security import "$TEMP_CERT" -P "temppass123" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH -T /usr/bin/codesign -T /usr/bin/xcodebuild
         else
           echo "Certificate file not found: $CERT_PATH"
           exit 1
