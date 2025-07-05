@@ -23,7 +23,6 @@ jobs:
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.0'
-        bundler-cache: true
         
     - name: Create Gemfile
       run: |
@@ -107,7 +106,6 @@ jobs:
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
       run: |
-        cd /
         bundle exec fastlane ios beta
         
     - name: Upload IPA Artifact
