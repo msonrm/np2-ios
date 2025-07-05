@@ -19,48 +19,96 @@ jobs:
       with:
         xcode-version: 'latest-stable'
         
-    - name: Import Code-Signing Certificates
-      uses: apple-actions/import-codesign-certs@v3
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
       with:
-        p12-file-base64: ${{ secrets.CERTIFICATES_P12 }}
-        p12-password: ${{ secrets.CERTIFICATES_PASSWORD }}
+        ruby-version: '3.0'
+        bundler-cache: true
         
-    - name: Install Provisioning Profile
-      uses: apple-actions/download-provisioning-profiles@v3
-      with:
-        bundle-id: com.msonrm.np2sdl2
-        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
-        api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
-        api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+    - name: Create Gemfile
+      run: |
+        cat > Gemfile << EOF
+        source "https://rubygems.org"
+        gem "fastlane"
+        EOF
+        bundle install
         
-    - name: Build Archive
+    - name: Setup Fastlane Match
+      env:
+        MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
+        FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
+        FASTLANE_SESSION: ${{ secrets.FASTLANE_SESSION }}
       run: |
-        cd sdl2/iOS
-        xcodebuild \
-          -project np2sdl2.xcodeproj \
-          -scheme np2sdl2 \
-          -destination "generic/platform=iOS" \
-          -configuration Release \
-          -archivePath np2sdl2.xcarchive \
-          IPHONEOS_DEPLOYMENT_TARGET=12.0 \
-          archive
-          
-    - name: Export IPA
+        mkdir -p fastlane
+        cat > fastlane/Fastfile << EOF
+        default_platform(:ios)
+        
+        platform :ios do
+          desc "Build and upload to TestFlight"
+          lane :beta do
+            setup_ci
+            
+            # Import certificates and provisioning profiles
+            import_certificate(
+              certificate_path: "certificates/ios_distribution_nopass.p12",
+              certificate_password: "",
+              keychain_name: "login.keychain",
+              keychain_password: ""
+            )
+            
+            # Install provisioning profile
+            install_provisioning_profile(path: "certificates/distribution.mobileprovision")
+            
+            # Build the app
+            gym(
+              scheme: "np2sdl2",
+              workspace: nil,
+              project: "sdl2/iOS/np2sdl2.xcodeproj",
+              configuration: "Release",
+              output_directory: "sdl2/iOS/export",
+              output_name: "np2sdl2.ipa",
+              export_method: "app-store",
+              export_options: {
+                method: "app-store",
+                teamID: ENV["APPLE_TEAM_ID"],
+                uploadBitcode: false,
+                uploadSymbols: true,
+                compileBitcode: false
+              }
+            )
+            
+            # Upload to TestFlight
+            pilot(
+              api_key_path: "AuthKey.p8",
+              ipa: "sdl2/iOS/export/np2sdl2.ipa",
+              skip_waiting_for_build_processing: true
+            )
+          end
+        end
+        EOF
+        
+    - name: Decode secrets
+      env:
+        PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        APP_STORE_CONNECT_API_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
       run: |
-        cd sdl2/iOS
-        xcodebuild \
-          -exportArchive \
-          -archivePath np2sdl2.xcarchive \
-          -exportPath export \
-          -exportOptionsPlist ExportOptions.plist
-          
-    - name: Upload to TestFlight
-      uses: apple-actions/upload-testflight-build@v1
-      with:
-        app-path: sdl2/iOS/export/np2sdl2.ipa
-        issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
-        api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
-        api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        # Decode provisioning profile
+        echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > certificates/distribution.mobileprovision
+        
+        # Create App Store Connect API key
+        echo "$APP_STORE_CONNECT_API_KEY" > AuthKey.p8
+        
+    - name: Run Fastlane
+      env:
+        FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
+        FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
+      run: |
+        cd /
+        bundle exec fastlane ios beta
         
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
