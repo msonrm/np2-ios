@@ -58,7 +58,14 @@ jobs:
       run: |
         cd sdl2/iOS
         
+        echo "=== Starting build process ==="
+        echo "Current directory: $(pwd)"
+        echo "Available schemes:"
+        xcodebuild -project np2sdl2.xcodeproj -list
+        
         echo "=== Building with manual signing ==="
+        echo "Build started at: $(date)"
+        
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
@@ -70,8 +77,12 @@ jobs:
           DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
           CODE_SIGN_IDENTITY="iPhone Distribution" \
-          -verbose \
+          -jobs 4 \
+          -quiet \
           archive
+          
+        echo "Build completed at: $(date)"
+        echo "Archive created: $(ls -la *.xcarchive)"
           
     - name: Export IPA
       run: |
