@@ -104,7 +104,7 @@ jobs:
         # Verify setup
         security find-identity -v -p codesigning $KEYCHAIN_PATH
         
-    - name: Build Archive
+    - name: Configure Project and Build Archive
       run: |
         cd sdl2/iOS
         
@@ -112,25 +112,23 @@ jobs:
         echo "Available provisioning profiles:"
         ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
         
-        # Get the UUID of the provisioning profile for distribution
+        # Get the UUID of the provisioning profile
         PP_FILES=(~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision)
         if [ -f "${PP_FILES[0]}" ]; then
           PP_FILE="${PP_FILES[0]}"
           PP_UUID=$(basename "$PP_FILE" .mobileprovision)
           echo "Found provisioning profile: $PP_FILE"
           echo "Using provisioning profile UUID: $PP_UUID"
-          
-          # If UUID looks like a proper UUID (not just filename), use it
-          if [[ "$PP_UUID" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]]; then
-            echo "Valid UUID format detected"
-          else
-            echo "Non-UUID filename, will try without UUID"
-            PP_UUID=""
-          fi
         else
-          echo "No provisioning profile found"
-          PP_UUID=""
+          echo "Error: No provisioning profile found"
+          exit 1
         fi
+        
+        # Update project settings using PlistBuddy
+        /usr/libexec/PlistBuddy -c "Set :objects:*:buildSettings:CODE_SIGN_STYLE Manual" np2sdl2.xcodeproj/project.pbxproj 2>/dev/null || true
+        /usr/libexec/PlistBuddy -c "Set :objects:*:buildSettings:DEVELOPMENT_TEAM ${{ secrets.APPLE_TEAM_ID }}" np2sdl2.xcodeproj/project.pbxproj 2>/dev/null || true
+        /usr/libexec/PlistBuddy -c "Set :objects:*:buildSettings:CODE_SIGN_IDENTITY[sdk=iphoneos*] iPhone Distribution" np2sdl2.xcodeproj/project.pbxproj 2>/dev/null || true
+        /usr/libexec/PlistBuddy -c "Set :objects:*:buildSettings:PROVISIONING_PROFILE_SPECIFIER $PP_UUID" np2sdl2.xcodeproj/project.pbxproj 2>/dev/null || true
         
         echo "=== Building for App Store distribution ==="
         xcodebuild \
@@ -140,11 +138,6 @@ jobs:
           -configuration Release \
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
-          CODE_SIGN_STYLE=Manual \
-          DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-          PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
-          CODE_SIGN_IDENTITY="iPhone Distribution" \
-          PROVISIONING_PROFILE="$PP_UUID" \
           archive
           
     - name: Export IPA
