@@ -19,26 +19,9 @@ jobs:
       with:
         xcode-version: 'latest-stable'
         
-    - name: Setup Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.0'
-        
-    - name: Create Gemfile and install dependencies
+    - name: Install Fastlane
       run: |
-        cat > Gemfile << EOF
-        source "https://rubygems.org"
-        gem "fastlane"
-        EOF
-        
-        # Install bundler if needed
-        gem install bundler
-        
-        # Configure bundler
-        bundle config set --local path 'vendor/bundle'
-        
-        # Install dependencies
-        bundle install
+        sudo gem install fastlane -NV
         
     - name: Setup Fastlane Match
       env:
@@ -114,7 +97,7 @@ jobs:
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
       run: |
-        bundle exec --gemfile=Gemfile fastlane ios beta
+        fastlane ios beta
         
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
