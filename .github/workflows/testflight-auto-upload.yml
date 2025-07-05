@@ -23,15 +23,14 @@ jobs:
       run: |
         sudo gem install fastlane -NV
         
-    - name: Setup Fastlane Match
-      env:
-        MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-        FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
-        FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
-        FASTLANE_SESSION: ${{ secrets.FASTLANE_SESSION }}
+    - name: Create Fastfile
       run: |
+        # Initialize fastlane
+        echo | fastlane init || true
+        
+        # Create our custom Fastfile
         mkdir -p fastlane
-        cat > fastlane/Fastfile << EOF
+        cat > fastlane/Fastfile << 'EOF'
         default_platform(:ios)
         
         platform :ios do
