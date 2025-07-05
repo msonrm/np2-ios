@@ -60,6 +60,13 @@ jobs:
         echo "$API_PRIVATE_KEY" > ~/private_keys/AuthKey_$API_KEY_ID.p8
         chmod 600 ~/private_keys/AuthKey_$API_KEY_ID.p8
         
+        # Verify API connection by listing apps
+        echo "=== Verifying App Store Connect API ==="
+        xcrun altool --list-apps \
+          --apiKey $API_KEY_ID \
+          --apiIssuer $API_ISSUER_ID \
+          --output-format json 2>/dev/null || echo "Could not list apps (API might be working but no apps found)"
+        
     - name: Build and Archive with Distribution Profile
       run: |
         cd sdl2/iOS
