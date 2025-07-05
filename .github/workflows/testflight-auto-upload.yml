@@ -32,22 +32,27 @@ jobs:
         # Decode and install Distribution certificate
         echo "${{ secrets.DISTRIBUTION_CERTIFICATE }}" | base64 --decode > ~/certificates/distribution.p12
         
-        # Create keychain
-        security create-keychain -p actions build.keychain
-        security default-keychain -s build.keychain
-        security unlock-keychain -p actions build.keychain
-        security set-keychain-settings -t 3600 -l ~/build.keychain
+        # Create keychain with full path
+        KEYCHAIN_PATH="$HOME/build.keychain"
+        security create-keychain -p actions "$KEYCHAIN_PATH"
+        security default-keychain -s "$KEYCHAIN_PATH"
+        security unlock-keychain -p actions "$KEYCHAIN_PATH"
+        security set-keychain-settings -t 3600 -l "$KEYCHAIN_PATH"
         
         # Import certificate to keychain
-        security import ~/certificates/distribution.p12 -k ~/build.keychain -P "${{ secrets.CERTIFICATE_PASSWORD }}" -A -t cert -f pkcs12 -m descr
+        security import ~/certificates/distribution.p12 -k "$KEYCHAIN_PATH" -P "${{ secrets.CERTIFICATE_PASSWORD }}" -A -t cert -f pkcs12 -m descr
         
         # Make the keychain the default and unlock it
-        security list-keychains -d user -s ~/build.keychain
-        security set-key-partition-list -S apple-tool:,apple: -s -k actions ~/build.keychain
+        security list-keychains -d user -s "$KEYCHAIN_PATH"
+        security set-key-partition-list -S apple-tool:,apple: -s -k actions "$KEYCHAIN_PATH"
         
         # Install provisioning profile
         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
         echo "${{ secrets.PROVISIONING_PROFILE }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/distribution.mobileprovision
+        
+        # Verify keychain and certificates
+        security list-keychains
+        security find-identity -v "$KEYCHAIN_PATH"
         
     - name: Build and Archive
       run: |
