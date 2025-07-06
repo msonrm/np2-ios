@@ -80,7 +80,7 @@ jobs:
           CODE_SIGN_STYLE=Automatic \
           CODE_SIGN_IDENTITY="Apple Development" \
           DEVELOPMENT_TEAM=$APPLE_TEAM_ID \
-          PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2sdl2 \
+          PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.AmbiPad \
           -allowProvisioningUpdates \
           -authenticationKeyPath ~/private_keys/AuthKey_$API_KEY_ID.p8 \
           -authenticationKeyID $API_KEY_ID \
