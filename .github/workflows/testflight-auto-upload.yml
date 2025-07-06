@@ -69,7 +69,7 @@ jobs:
       run: |
         cd sdl2/iOS
         
-        echo "=== Building for Development Testing ==="
+        echo "=== Building for Distribution Testing ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
@@ -78,7 +78,7 @@ jobs:
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
           CODE_SIGN_STYLE=Automatic \
-          CODE_SIGN_IDENTITY="Apple Development" \
+          CODE_SIGN_IDENTITY="Apple Distribution" \
           DEVELOPMENT_TEAM=$APPLE_TEAM_ID \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.AmbiPad \
           -allowProvisioningUpdates \
@@ -95,14 +95,14 @@ jobs:
       run: |
         cd sdl2/iOS
         
-        # Create export options for development testing
+        # Create export options for app-store distribution
         cat > ExportOptions.plist << EOF
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
         <dict>
             <key>method</key>
-            <string>development</string>
+            <string>app-store-connect</string>
             <key>teamID</key>
             <string>$APPLE_TEAM_ID</string>
             <key>uploadBitcode</key>
@@ -111,6 +111,8 @@ jobs:
             <true/>
             <key>compileBitcode</key>
             <false/>
+            <key>destination</key>
+            <string>upload</string>
             <key>signingStyle</key>
             <string>automatic</string>
         </dict>
@@ -128,16 +130,20 @@ jobs:
           -authenticationKeyID $API_KEY_ID \
           -authenticationKeyIssuerID $API_ISSUER_ID
           
-    - name: Test Build Complete
+    - name: Upload to TestFlight
+      env:
+        API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+        API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
       run: |
         cd sdl2/iOS
         
-        echo "=== Development build completed successfully ==="
-        echo "IPA file created for testing:"
-        ls -la export/
-        
-        # Note: Development builds cannot be uploaded to TestFlight
-        # This step validates the build process works correctly
+        echo "=== Uploading to TestFlight ==="
+        xcrun altool --upload-app \
+          --type ios \
+          --file export/*.ipa \
+          --apiKey $API_KEY_ID \
+          --apiIssuer $API_ISSUER_ID \
+          --verbose
           
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
