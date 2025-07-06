@@ -46,6 +46,21 @@ jobs:
         echo "$API_PRIVATE_KEY" > ~/private_keys/AuthKey_$API_KEY_ID.p8
         chmod 600 ~/private_keys/AuthKey_$API_KEY_ID.p8
         
+        # Test App Store Connect API
+        echo "=== Testing App Store Connect API ==="
+        echo "API Key ID: $API_KEY_ID"
+        echo "Issuer ID: $API_ISSUER_ID"
+        echo "API Key file:"
+        ls -la ~/private_keys/
+        echo "API Key file content preview:"
+        head -3 ~/private_keys/AuthKey_$API_KEY_ID.p8
+        
+        echo "=== Testing API connection ==="
+        xcrun altool --list-apps \
+          --apiKey $API_KEY_ID \
+          --apiIssuer $API_ISSUER_ID \
+          --output-format json || echo "API test failed - will continue with build test"
+        
     - name: Build and Archive
       env:
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
