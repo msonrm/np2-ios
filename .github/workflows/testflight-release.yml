@@ -136,19 +136,30 @@ jobs:
       run: |
         cd sdl2/iOS
         
+        echo "=== Finding IPA files ==="
+        ls -la export/
+        find export -name "*.ipa" -exec ls -la {} \;
+        
         echo "=== Uploading to TestFlight ==="
-        xcrun altool --upload-app \
-          --type ios \
-          --file export/*.ipa \
-          --apiKey $API_KEY_ID \
-          --apiIssuer $API_ISSUER_ID \
-          --verbose
+        IPA_FILE=$(find export -name "*.ipa" | head -1)
+        if [ -n "$IPA_FILE" ]; then
+          echo "Found IPA file: $IPA_FILE"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_FILE" \
+            --apiKey $API_KEY_ID \
+            --apiIssuer $API_ISSUER_ID \
+            --verbose
+        else
+          echo "No IPA file found in export directory!"
+          exit 1
+        fi
           
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
       with:
         name: np2-testflight-ipa
-        path: sdl2/iOS/export/*.ipa
+        path: sdl2/iOS/export/
         retention-days: 7
         
     - name: Clean up
