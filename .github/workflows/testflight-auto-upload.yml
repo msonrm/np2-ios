@@ -36,7 +36,20 @@ jobs:
         
         # Import distribution certificate
         echo "$DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > certificate.cer
+        
+        # Check certificate details
+        echo "=== Certificate Information ==="
+        openssl x509 -in certificate.cer -inform DER -text -noout | head -20
+        echo "=== Certificate Subject ==="
+        openssl x509 -in certificate.cer -inform DER -subject -noout
+        echo "=== Certificate Issuer ==="
+        openssl x509 -in certificate.cer -inform DER -issuer -noout
+        
         security import certificate.cer -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -A
+        
+        # List certificates in keychain
+        echo "=== Certificates in Keychain ==="
+        security find-identity -v -p codesigning "$KEYCHAIN_PATH"
         
         # Add keychain to search list
         security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
