@@ -32,16 +32,10 @@ jobs:
         
     - name: Build Archive
       env:
-        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
         API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUE_ID }}
       run: |
         cd sdl2/iOS
-        
-        echo "=== Debugging environment variables ==="
-        echo "API_KEY_ID: $API_KEY_ID"
-        echo "API_ISSUER_ID: $API_ISSUER_ID"
-        echo "APPLE_TEAM_ID: $APPLE_TEAM_ID"
         
         echo "=== Building for TestFlight Distribution ==="
         xcodebuild \
@@ -52,7 +46,7 @@ jobs:
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
           CODE_SIGN_STYLE=Automatic \
-          DEVELOPMENT_TEAM=$APPLE_TEAM_ID \
+          DEVELOPMENT_TEAM=56M5TL55LH \
           PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2-ios2 \
           -allowProvisioningUpdates \
           -authenticationKeyPath ~/private_keys/AuthKey_$API_KEY_ID.p8 \
@@ -61,8 +55,6 @@ jobs:
           archive
           
     - name: Create Export Options
-      env:
-        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       run: |
         cd sdl2/iOS
         
@@ -74,7 +66,7 @@ jobs:
             <key>method</key>
             <string>app-store-connect</string>
             <key>teamID</key>
-            <string>$APPLE_TEAM_ID</string>
+            <string>56M5TL55LH</string>
             <key>uploadBitcode</key>
             <false/>
             <key>uploadSymbols</key>
