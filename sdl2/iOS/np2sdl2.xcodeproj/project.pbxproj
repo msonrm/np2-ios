@@ -25,6 +25,7 @@
 		BA0A37ED193EA29400009566 /* Default-Landscape.png in Resources */ = {isa = PBXBuildFile; fileRef = BA0A37EB193EA29400009566 /* Default-Landscape.png */; };
 		BA0A37EE193EA29400009566 /* Icon-72.png in Resources */ = {isa = PBXBuildFile; fileRef = BA0A37EC193EA29400009566 /* Icon-72.png */; };
 		BA0A37EF193EA29500009566 /* Icon-120.png in Resources */ = {isa = PBXBuildFile; fileRef = BA0A37ED193EA29500009566 /* Icon-120.png */; };
+		BA0A37F0193EA29600009566 /* Icon-180.png in Resources */ = {isa = PBXBuildFile; fileRef = BA0A37EE193EA29600009566 /* Icon-180.png */; };
 		BA2CAE5B1C2E7F2900288316 /* oplgenc.c in Sources */ = {isa = PBXBuildFile; fileRef = BA2CAE581C2E7F2900288316 /* oplgenc.c */; };
 		BA2CAE5C1C2E7F2900288316 /* oplgeng.c in Sources */ = {isa = PBXBuildFile; fileRef = BA2CAE5A1C2E7F2900288316 /* oplgeng.c */; };
 		BA52395F1BC3E4FC00E7C617 /* Default-568h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = BA52395E1BC3E4FC00E7C617 /* Default-568h@2x.png */; };
@@ -334,6 +335,7 @@
 		BA0A37EB193EA29400009566 /* Default-Landscape.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default-Landscape.png"; sourceTree = "<group>"; };
 		BA0A37EC193EA29400009566 /* Icon-72.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-72.png"; sourceTree = "<group>"; };
 		BA0A37ED193EA29500009566 /* Icon-120.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-120.png"; sourceTree = "<group>"; };
+		BA0A37EE193EA29600009566 /* Icon-180.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-180.png"; sourceTree = "<group>"; };
 		BA2CAE571C2E7F2900288316 /* oplgen.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = oplgen.h; sourceTree = "<group>"; };
 		BA2CAE581C2E7F2900288316 /* oplgenc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = oplgenc.c; sourceTree = "<group>"; };
 		BA2CAE591C2E7F2900288316 /* oplgencfg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = oplgencfg.h; sourceTree = "<group>"; };
@@ -897,6 +899,7 @@
 				BA0A37EB193EA29400009566 /* Default-Landscape.png */,
 				BA0A37EC193EA29400009566 /* Icon-72.png */,
 				BA0A37ED193EA29500009566 /* Icon-120.png */,
+				BA0A37EE193EA29600009566 /* Icon-180.png */,
 				FD77A07E0E26BDA900F39101 /* Default.png */,
 				FD77A07C0E26BD8C00F39101 /* Icon.png */,
 				8D1107310486CEB800E47090 /* Info.plist */,
@@ -1540,6 +1543,7 @@
 				9280EC2D1DF2488200410856 /* GameControllerKeyRemapController.xib in Resources */,
 				BA0A37EE193EA29400009566 /* Icon-72.png in Resources */,
 				BA0A37EF193EA29500009566 /* Icon-120.png in Resources */,
+				BA0A37F0193EA29600009566 /* Icon-180.png in Resources */,
 				FD77A07F0E26BDA900F39101 /* Default.png in Resources */,
 				BA52395F1BC3E4FC00E7C617 /* Default-568h@2x.png in Resources */,
 				BA0A37ED193EA29400009566 /* Default-Landscape.png in Resources */,
