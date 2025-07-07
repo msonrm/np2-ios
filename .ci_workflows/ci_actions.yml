@@ -1,0 +1,23 @@
+version: 1
+actions:
+  - name: Test and Build
+    scheme: np2sdl2
+    platform: iOS
+    configuration: Release
+    destination: iOS Simulator
+    
+  - name: Archive and Upload
+    scheme: np2sdl2
+    platform: iOS
+    configuration: Release
+    destination: Any iOS Device
+    archive: true
+    upload_to_testflight: true
+
+triggers:
+  - branch: master
+    action: Archive and Upload
+    
+  - pull_request:
+      target_branch: master
+    action: Test and Build
