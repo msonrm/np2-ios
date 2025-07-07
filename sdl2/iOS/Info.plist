@@ -17,6 +17,8 @@
 		<string>Icon-167</string>
 		<string>Icon-180</string>
 	</array>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIcons</key>
 	<dict>
 		<key>CFBundlePrimaryIcon</key>
