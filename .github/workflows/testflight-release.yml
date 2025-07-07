@@ -23,7 +23,7 @@ jobs:
     - name: Setup App Store Connect API
       env:
         API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
-        API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
         API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
       run: |
         mkdir -p ~/private_keys
@@ -34,7 +34,7 @@ jobs:
       env:
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
-        API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
       run: |
         cd sdl2/iOS
         
@@ -87,7 +87,7 @@ jobs:
     - name: Export IPA
       env:
         API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
-        API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
       run: |
         cd sdl2/iOS
         
@@ -105,7 +105,7 @@ jobs:
     - name: Upload to TestFlight
       env:
         API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
-        API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+        API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
       run: |
         cd sdl2/iOS
         
