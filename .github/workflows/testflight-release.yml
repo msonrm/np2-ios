@@ -81,6 +81,17 @@ jobs:
         </plist>
         EOF
         
+    - name: Debug Archive Contents
+      run: |
+        cd sdl2/iOS
+        echo "=== Archive Contents ==="
+        find np2sdl2.xcarchive -name "*.png" | head -20
+        echo "=== App Bundle Icons ==="
+        find np2sdl2.xcarchive -path "*/np2sdl2.app/*" -name "Icon*.png" -exec ls -la {} \;
+        echo "=== Info.plist Icon References ==="
+        /usr/libexec/PlistBuddy -c "Print CFBundleIconFiles" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Print CFBundleIcons" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || true
+        
     - name: Export IPA
       env:
         API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
