@@ -118,6 +118,16 @@ jobs:
       run: |
         cd sdl2/iOS
         
+        echo "=== Pre-export status ==="
+        ls -la
+        echo "=== Archive contents ==="
+        ls -la np2sdl2.xcarchive/ || echo "Archive not found"
+        echo "=== ExportOptions.plist content ==="
+        cat ExportOptions.plist
+        
+        echo "=== Creating export directory ==="
+        mkdir -p export
+        
         echo "=== Exporting IPA ==="
         xcodebuild \
           -exportArchive \
@@ -127,14 +137,28 @@ jobs:
           -allowProvisioningUpdates \
           -authenticationKeyPath ~/private_keys/AuthKey_$API_KEY_ID.p8 \
           -authenticationKeyID $API_KEY_ID \
-          -authenticationKeyIssuerID $API_ISSUER_ID
+          -authenticationKeyIssuerID $API_ISSUER_ID \
+          -verbose
+          
+        echo "=== Post-export status ==="
+        ls -la export/ || echo "Export directory empty"
+        find . -name "*.ipa" -exec ls -la {} \;
           
     - name: Upload to TestFlight
+      if: success()
       env:
         API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
         API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUE_ID }}
       run: |
         cd sdl2/iOS
+        
+        echo "=== Checking export directory ==="
+        if [ ! -d "export" ]; then
+          echo "Export directory does not exist!"
+          echo "Checking for IPA files in current directory..."
+          find . -name "*.ipa" -exec ls -la {} \;
+          exit 1
+        fi
         
         echo "=== Finding IPA files ==="
         ls -la export/
@@ -152,6 +176,8 @@ jobs:
             --verbose
         else
           echo "No IPA file found in export directory!"
+          echo "Contents of export directory:"
+          ls -la export/
           exit 1
         fi
           
