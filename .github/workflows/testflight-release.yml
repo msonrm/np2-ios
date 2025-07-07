@@ -86,16 +86,30 @@ jobs:
         cd sdl2/iOS
         echo "=== Source Icons Before Build ==="
         ls -la Icon*.png
+        file Icon*.png
+        echo ""
+        echo "=== Source Info.plist Content ==="
+        cat Info.plist | grep -A 20 -B 5 CFBundleIcon
+        echo ""
         echo "=== Archive Contents ==="
         find np2sdl2.xcarchive -name "*.png" | head -20
+        echo ""
         echo "=== App Bundle Icons ==="
         find np2sdl2.xcarchive -path "*/np2sdl2.app/*" -name "Icon*.png" -exec ls -la {} \;
+        echo ""
         echo "=== All App Bundle Files ==="
         ls -la np2sdl2.xcarchive/Products/Applications/np2sdl2.app/ | grep -E "\.(png|plist)$"
+        echo ""
+        echo "=== Final App Bundle Info.plist Content ==="
+        cat np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist | grep -A 20 -B 5 CFBundleIcon || echo "CFBundleIcon not found"
+        echo ""
         echo "=== Info.plist Icon References ==="
-        /usr/libexec/PlistBuddy -c "Print CFBundleIconFiles" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Print CFBundleIcons" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || true
-        /usr/libexec/PlistBuddy -c "Print CFBundleIconName" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Print CFBundleIconFiles" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || echo "CFBundleIconFiles not found"
+        /usr/libexec/PlistBuddy -c "Print CFBundleIcons" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || echo "CFBundleIcons not found"
+        /usr/libexec/PlistBuddy -c "Print CFBundleIconName" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || echo "CFBundleIconName not found"
+        echo ""
+        echo "=== Complete App Bundle Directory ==="
+        ls -la np2sdl2.xcarchive/Products/Applications/np2sdl2.app/
         
     - name: Export IPA
       env:
