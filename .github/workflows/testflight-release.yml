@@ -38,6 +38,11 @@ jobs:
       run: |
         cd sdl2/iOS
         
+        echo "=== Debugging environment variables ==="
+        echo "API_KEY_ID: $API_KEY_ID"
+        echo "API_ISSUER_ID: $API_ISSUER_ID"
+        echo "APPLE_TEAM_ID: $APPLE_TEAM_ID"
+        
         echo "=== Building for TestFlight Distribution ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
