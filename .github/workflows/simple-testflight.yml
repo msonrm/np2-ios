@@ -1,11 +1,11 @@
-name: Build IPA for TestFlight
+name: Simple TestFlight Upload
 
 on:
-  workflow_dispatch:  # 手動実行のみ
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build IPA
+    name: Build and Upload to TestFlight
     runs-on: macos-latest
     
     steps:
@@ -17,11 +17,11 @@ jobs:
       with:
         xcode-version: 'latest-stable'
         
-    - name: Build Archive (No Code Signing)
+    - name: Build Archive
       run: |
         cd sdl2/iOS
         
-        echo "=== Building without code signing ==="
+        echo "=== Building Archive ==="
         xcodebuild \
           -project np2sdl2.xcodeproj \
           -scheme np2sdl2 \
@@ -29,27 +29,57 @@ jobs:
           -configuration Release \
           -archivePath np2sdl2.xcarchive \
           IPHONEOS_DEPLOYMENT_TARGET=12.0 \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO \
+          CODE_SIGN_STYLE=Automatic \
+          DEVELOPMENT_TEAM=56M5TL55LH \
+          PRODUCT_BUNDLE_IDENTIFIER=com.msonrm.np2-ios2 \
           archive
           
-    - name: Upload Archive Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: np2-archive
-        path: sdl2/iOS/np2sdl2.xcarchive
-        retention-days: 7
-        
-    - name: Instructions
+    - name: Create Export Options
       run: |
-        echo "============================================"
-        echo "Archive created successfully!"
-        echo "============================================"
-        echo "To create IPA for TestFlight:"
-        echo "1. Download the archive from GitHub Actions artifacts"
-        echo "2. Open Xcode Organizer"
-        echo "3. Import the archive"
-        echo "4. Click 'Distribute App' -> 'App Store Connect'"
-        echo "5. Follow the signing and upload process"
-        echo "============================================"
+        cd sdl2/iOS
+        cat > ExportOptions.plist << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>56M5TL55LH</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>destination</key>
+            <string>upload</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+        </dict>
+        </plist>
+        EOF
+        
+    - name: Export IPA
+      run: |
+        cd sdl2/iOS
+        
+        echo "=== Exporting IPA ==="
+        xcodebuild \
+          -exportArchive \
+          -archivePath np2sdl2.xcarchive \
+          -exportPath . \
+          -exportOptionsPlist ExportOptions.plist
+          
+        echo "=== Checking for IPA ==="
+        ls -la *.ipa || echo "No IPA found"
+        
+    - name: Upload to TestFlight
+      run: |
+        cd sdl2/iOS
+        
+        echo "=== Uploading to TestFlight ==="
+        xcrun altool --upload-app \
+          --type ios \
+          --file *.ipa \
+          --username "${{ secrets.APPLE_ID }}" \
+          --password "${{ secrets.APP_SPECIFIC_PASSWORD }}" \
+          --verbose
