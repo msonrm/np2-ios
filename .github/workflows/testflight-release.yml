@@ -84,13 +84,18 @@ jobs:
     - name: Debug Archive Contents
       run: |
         cd sdl2/iOS
+        echo "=== Source Icons Before Build ==="
+        ls -la Icon*.png
         echo "=== Archive Contents ==="
         find np2sdl2.xcarchive -name "*.png" | head -20
         echo "=== App Bundle Icons ==="
         find np2sdl2.xcarchive -path "*/np2sdl2.app/*" -name "Icon*.png" -exec ls -la {} \;
+        echo "=== All App Bundle Files ==="
+        ls -la np2sdl2.xcarchive/Products/Applications/np2sdl2.app/ | grep -E "\.(png|plist)$"
         echo "=== Info.plist Icon References ==="
         /usr/libexec/PlistBuddy -c "Print CFBundleIconFiles" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || true
         /usr/libexec/PlistBuddy -c "Print CFBundleIcons" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || true
+        /usr/libexec/PlistBuddy -c "Print CFBundleIconName" np2sdl2.xcarchive/Products/Applications/np2sdl2.app/Info.plist || true
         
     - name: Export IPA
       env:
