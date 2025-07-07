@@ -19,29 +19,13 @@ jobs:
       with:
         xcode-version: 'latest-stable'
         
-    - name: Setup Certificates and API
+    - name: Setup API for Cloud Signing
       env:
-        DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.DISTRIBUTION_CERTIFICATE_BASE64 }}
         API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
         API_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
         API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
       run: |
-        # Create keychain
-        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
-        
-        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-        
-        # Import distribution certificate
-        echo "$DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > certificate.cer
-        security import certificate.cer -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -A
-        
-        # Add keychain to search list
-        security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
-        
-        # Setup App Store Connect API
+        # Setup App Store Connect API for cloud signing
         mkdir -p ~/private_keys
         echo "$API_PRIVATE_KEY" > ~/private_keys/AuthKey_$API_KEY_ID.p8
         chmod 600 ~/private_keys/AuthKey_$API_KEY_ID.p8
