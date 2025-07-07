@@ -14,7 +14,7 @@
 		<string>Icon-72.png</string>
 	</array>
 	<key>CFBundleIconName</key>
-	<string>Icon</string>
+	<string>AppIcon</string>
 	<key>CFBundleIcons</key>
 	<dict>
 		<key>CFBundlePrimaryIcon</key>
