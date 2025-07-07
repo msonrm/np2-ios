@@ -44,11 +44,11 @@ void scrnmng_aftercreate(SDL_Window *sdlWindow) {
     [rootVC.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-0-[keyControllerView]-0-|" options:0 metrics:nil views:viewBindings]];
     [rootVC.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0-[keyControllerView]-0-|" options:0 metrics:nil views:viewBindings]];
     [rootVC.view bringSubviewToFront:keyControllerView];
-    keyControllerView.hidden = YES;    
+    keyControllerView.hidden = NO;    
 }
 
 void scrnmng_ios_toggle_keyboard_view(SDL_Window *sdlWindow) {
     UIViewController *rootVC = GetSDLViewController(sdlWindow);
     UIView *kbview = [rootVC.view viewWithTag:IOS_KB_VIEW_TAG];
-    kbview.hidden = !kbview.hidden;
+    kbview.hidden = NO;
 }
