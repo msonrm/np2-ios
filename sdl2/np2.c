@@ -160,6 +160,15 @@ int np2_main(int argc, char *argv[]) {
 	scrndraw_redraw();
 	pccore_reset();
 
+	// Auto-load HDD.hdi if it exists in the app directory
+	{
+		OEMCHAR hdd_path[MAX_PATH];
+		file_cpyname(hdd_path, "HDD.hdi", NELEMENTS(hdd_path));
+		if (file_attr(hdd_path) != -1) {
+			diskdrv_setsxsi(0x00, hdd_path);  // Mount as SASI HDD 0
+		}
+	}
+
 	if (np2oscfg.resume) {
 		id = flagload(str_sav, str_resume, FALSE);
 		if (id == DID_CANCEL) {
